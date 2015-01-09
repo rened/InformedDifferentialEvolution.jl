@@ -40,14 +40,13 @@ The optimization process can be controlled through the following keyword argumen
 
 ## With predictors
 
-In this example we assume that we can learn from a couple of examples in a training phase and estimate a linear regression model as our predictor.
+In this example we assume that we can learn from a couple of examples in a training phase and use the resulting model in our predictor:
 
 ```jl
 # example predictor which learned to predict offsets
 predictor(pop, costs) = pop + predict(somemodel, pop)
 
-(best, info) = de(costf, [-10,-10], [10,10], {predictor, :default})
-@show optimum best optimum-best
+best, info = de(costf, [-10,-10], [10,10], {predictor, :default})
 ```
 
 There is a helper function available to compare different strategies:
