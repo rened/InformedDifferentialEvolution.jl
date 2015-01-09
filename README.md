@@ -12,7 +12,7 @@ The key idea of Differential Evolution, without the additions of mutations and c
 Predictors allow to compare `a` not only to `a'`, but also to one or more hypotheses `a'' = predict(a)`. Predictions are computed for the entire population at once, so the signature of `predict` is actually `predictions = predict(currentgeneration, currentcosts)`.
 
 
-## Use without predictors
+## Without predictors
 
 ```jl
 optimum = [-2 4]'
@@ -31,14 +31,14 @@ The `costfunction` is expected to take a single parameter of type `Array{Number,
 The optimization process can be controlled through the following keyword arguments of `de`, listed with their default values:
 * `npop = 100`, number of candidates in the population
 * `maxiter = 1e6`, maximum number of iterations
-* lambda = 0.85, value of lambda used in the default DE predictor (see above)
-* initpop = mi .+ rand(length(mi), npop) .* (ma - mi), initial population
-* recordhistory = false, record details about each candidates' evolution
-* continueabove = -Inf, stop when the cost of the best candidate reaches this value
-* replaceworst = 0.0, percentage specified as range `0.0 ... 1.0`. In each iteration this percentage of candidates is replaced with copies of the best candidates
-* roundto = 1e-6, size of the grid in the parameter space where candidates live. Set to 0 for full numerical precision. Can also be a vector the size of `minima`/`maxima`, in which case the grid resolution can be different for each parameter. E.g. to enforce integers set to 1.
+* `lambda = 0.85`, value of `lambda` used in the default DE predictor (see above)
+* `initpop = mi .+ rand(length(mi), npop) .* (ma - mi)`, initial population
+* `recordhistory = false`, record details about each candidates' evolution
+* `continueabove = -Inf`, stop when the cost of the best candidate reaches this value
+* `replaceworst = 0.0`, percentage specified as range `0.0 ... 1.0`. In each iteration this percentage of candidates is replaced with copies of the best candidates
+* `roundto = 1e-6`, size of the grid in the parameter space where candidates live. Set to `0` for full numerical precision. Can also be a vector the size of `minima` / `maxima`, in which case the grid resolution can be different for each parameter. E.g. to enforce integers set to `1`
 
-## Use with predictors
+## With predictors
 
 In this example we assume that we can learn from a couple of examples in a training phase and estimate a linear regression model as our predictor.
 
