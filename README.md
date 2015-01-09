@@ -52,7 +52,7 @@ best, info = de(costf, [-10,-10], [10,10], {predictor, :default})
 There is a helper function available to compare different strategies:
 
 ```jl
-using InformedDEHelpers
+using InformedDEHelpers, PyPlot
 analyze(f, mi, ma, [
 	("default", {:default},{}),
 	("pred first", {predictor, :default}, {}),
