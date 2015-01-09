@@ -18,7 +18,7 @@ Predictors allow to compare `a` not only to `a'`, but also to one or more hypoth
 optimum = [-2 4]'
 costf(x) = (r = sqrt(sum((x-optimum).^2)); sin(r)^2+r/2)
 
-(best, info) = de(costf, [-10,-10], [10,10])
+best, info = de(costf, [-10,-10], [10,10])
 @show optimum best optimum-best
 ```
 `de` has the following signature:
