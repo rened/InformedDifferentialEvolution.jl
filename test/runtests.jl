@@ -1,4 +1,4 @@
-using DifferentialEvolution
+using InformedDifferentialEvolution
 using Base.Test
 
 # write your own tests here

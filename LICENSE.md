@@ -1,4 +1,4 @@
-The DifferentialEvolution.jl package is licensed under the MIT "Expat" License:
+The InformedDifferentialEvolution.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2014: Rene Donner.
 >
