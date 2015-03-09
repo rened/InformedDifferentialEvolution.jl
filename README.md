@@ -68,4 +68,9 @@ analyze(f, mi, ma, [
 ![](example.png)
 
 
+## News
+
+#### master
+
+* fixed broken rounding and clamping
 
