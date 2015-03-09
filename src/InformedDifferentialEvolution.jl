@@ -1,13 +1,8 @@
 module InformedDifferentialEvolution
 
-export de
+using FunctionalDataUtils
 
-col(a) = reshape(a, (length(a),1))
-function clamp!(a, mi, ma)
-   for n = size(a,2), m = size(a,1) 
-        a[m,n] = clamp(a[m,n],mi[m],ma[m]) 
-    end
-end
+export de
 
 extract(a, field) = map(x->x[field],a)
 nanmean(a) = mean(a[!isnan(a)])
@@ -21,14 +16,15 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 	maxstableiter = 100,
     predictors = {:default},
     lambda = 0.85,
-    initpop = mi .+ rand(length(mi), npop) .* (ma - mi),
+    initpop = col(mi) .+ rand(length(mi), npop) .* (col(ma) - col(mi)),
     recordhistory = false,
     tryallpredictors = false,
     continueabove = -Inf,
     replaceworst = 0.0,
 	roundto = 1e-6)
 
-    pop = copy(initpop)
+    pop = rounder(copy(initpop), roundto)
+    pop = clamp(pop,mi,ma)
     newpop = zero(initpop)
     costs = zeros(npop)
     newcosts = zeros(npop)
@@ -74,9 +70,8 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
         predictors[find(predictors.==:default)] = defaultpredictor
         predictedpops = map(x->x(pop, costs), predictors)
-		if roundto != nothing && roundto > 0
-			map(x->rounder(x, roundto), predictedpops)
-		end
+        predictedpops = map(x->clamp(x,mi,ma), predictedpops)
+        predictedpops = map(x->rounder(x, roundto), predictedpops)
 				
                 
 		gotbetter = false
