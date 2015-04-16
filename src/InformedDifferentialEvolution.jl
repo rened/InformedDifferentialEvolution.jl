@@ -1,34 +1,58 @@
 module InformedDifferentialEvolution
 
-using FunctionalDataUtils
+using FunctionalDataUtils, Compat
 
 export de
 
 extract(a, field) = map(x->x[field],a)
 nanmean(a) = mean(a[!isnan(a)])
 
-rounder(a,stepsize) = round(a./stepsize).*stepsize
+function rounder!(a,stepsize::Real)
+    for i = 1:length(a)
+        a[i] = round(a[i]/stepsize)*stepsize
+    end
+end
+
+function rounder!(a,stepsize::Matrix)
+    for n = 1:len(a), m = 1:sizem(a)
+        a[m,n] = round(a[m,n]/stepsize[m])*stepsize[m]
+    end
+end
 
 de(costf::Function, mi::Vector, ma::Vector; args...) = de(costf, col(mi), col(ma); args...)
-function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2}; 
-    npop = 100, 
-    maxiter = 1e6, 
+function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
+    npop = 100,
+    maxiter = 1e6,
 	maxstableiter = 100,
-    predictors = {:default},
+    predictors = Any[:default],
     lambda = 0.85,
-    initpop = col(mi) .+ rand(length(mi), npop) .* (col(ma) - col(mi)),
+    sampler = rand,
+    initpop = if sampler == rand
+        col(mi) .+ rand(length(mi), npop) .* (col(ma) - col(mi))
+    elseif sampler == randn
+        (col(mi)+col(ma))/2 .+ clamp(randn(length(mi), npop)./6,-0.5,0.5) .* (col(ma) - col(mi))
+    else
+        error("InformedDifferentialEvolution: de: invalid value for paramter 'sampler'")
+    end,
     recordhistory = false,
     tryallpredictors = false,
     continueabove = -Inf,
-    replaceworst = 0.0,
-	roundto = 1e-6)
+    crossoverprob = 0.5,
+    diffweight = 0.85,
+	roundto = 1e-6,
+    data = nothing,
+    verbosity::Array = Symbol[],
+    replaceworst = 0.1,
+    classicmode = true,
+    # :iter show iter number, :newbest show new bests, :pop population
+    io = STDOUT)
 
-    pop = rounder(copy(initpop), roundto)
-    pop = clamp(pop,mi,ma)
-    newpop = zero(initpop)
+    pop = copy(initpop)
+    rounder!(pop, roundto)
+    clamp!(pop,mi,ma)
     costs = zeros(npop)
     newcosts = zeros(npop)
-    frompredictor = fill(NaN,npop)
+    frompredictor = falses(len(predictors), npop)
     ind1 = randperm(npop)
     ind2 = randperm(npop)
     iter = 1
@@ -36,29 +60,36 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 	nstableiter = 0
 	if isa(roundto, Array) roundto = col(roundto) end
 
-    for i = 1:npop
-        costs[i] = costf(pop[:,i])
-        ncostevals += 1
-    end
-    bestcost, bestind = findmin(costs)
-    best = pop[:,bestind]
+    ###### predictors
 
-    if recordhistory
-        history = Array(Any,maxiter+1)
-        history[1] = Dict({"pop","costs","bestcost","best","predictor", "ncostevals"},
-        {copy(pop), copy(costs), copy(bestcost), copy(best), copy(frompredictor), ncostevals})
-    else
-        history = {}
-    end
-        
-    while iter < maxiter && nstableiter < maxstableiter && bestcost > continueabove
-		nstableiter += 1
+    function defaultpredictor!{T}(r::Matrix{T}, pop::Matrix{T}, costs)
+        if classicmode
+            randind() = rand(1:npop)
+            for ind0 = 1:npop
+                D = rand(1:sizem(pop))
 
-        if isempty(predictors)
-            error("no predictors specified, use {:default} for no predictors")
-        end
-        function defaultpredictor(pop, costs)
-            r = pop + lambda*(pop[:,randperm(npop)]-pop[:,randperm(npop)])
+                ind1 = randind()
+                while ind1 == ind0 ind1 = randind() end
+                ind2 = randind()
+                while ind2 == ind0 || ind2 == ind1 ind2 = randind() end
+                ind3 = randind()
+                while ind3 == ind0 || ind3 == ind1 || ind3 == ind2 ind3 = randind() end
+
+                for m = 1:sizem(pop)
+                    if rand() < crossoverprob || m == D
+                        r[m,ind0] = pop[m,ind1] + diffweight*(pop[m,ind2]-pop[m,ind3])
+                    else
+                        r[m,ind0] = pop[m,ind0]
+                    end
+                end
+            end
+            r
+        else
+            for n = 1:len(pop), m = 1:sizem(pop)
+                ind1 = rand(1:npop)
+                ind2 = rand(1:npop)
+                r[m,n] = pop[m,n] + diffweight*(pop[m,ind1]-pop[m,ind2])
+            end
             if replaceworst > 0.0
                 # @show costs
                 ind = sortperm(costs)
@@ -67,40 +98,77 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
             end
             r
         end
+    end
 
-        predictors[find(predictors.==:default)] = defaultpredictor
-        predictedpops = map(x->x(pop, costs), predictors)
-        predictedpops = map(x->clamp(x,mi,ma), predictedpops)
-        predictedpops = map(x->rounder(x, roundto), predictedpops)
-				
-                
-		gotbetter = false
-        for i = 1:npop
-            gotbetter = false
+    if isempty(predictors)
+        error("no predictors specified, use [:default] for no predictors")
+    end
+    predictors[find(predictors.==:default)] = defaultpredictor!
+    predictedpop = zero(initpop)
 
-            for j = 1:length(predictedpops)
-                if !gotbetter || tryallpredictors
-                    newitem = predictedpops[j][:,i]
-                    newcost = costf(newitem)
-                    ncostevals += 1
-                    if newcost < costs[i]
-                        gotbetter = true
-                        frompredictor[i] = j
-                        pop[:,i] = newitem
-                        costs[i] = newcost
-                    end
+
+    if data != nothing
+        costf(a) = costf(a, data)
+    end
+
+    for i = 1:npop
+        costs[i] = costf(pop[:,i])
+        ncostevals += 1
+    end
+    bestcost, bestind = findmin(costs)
+    best = pop[:,bestind]
+
+    showiter = in(:iter, verbosity)
+    showbest = in(:best, verbosity)
+    shownewbest = in(:newbest, verbosity)
+    showpop = in(:pop, verbosity)
+    log(a...) = println(io, a...)
+
+    if recordhistory
+        history = Array(Any,maxiter+1)
+        history[1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals))
+    else
+        history = Any[]
+    end
+
+
+    pv = view(predictedpop)
+    while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove
+        showiter && log("Iteration: $iter")
+        showpop && log("Population:\n$pop")
+
+		nstableiter += 1
+
+        gotbetter = false
+        for m = 1:len(predictors)
+            predictors[m](predictedpop, pop, costs)
+            rounder!(predictedpop, roundto)
+            clamp!(predictedpop, mi, ma)
+
+            for n = 1:npop
+                view!(predictedpop, n, pv)
+                newcost = costf(pv)
+                ncostevals += 1
+                # @show costs[n] newcost pv
+                if newcost < costs[n]
+                    frompredictor[m,n] = true
+                    pop[:,n] = pv
+                    costs[n] = newcost
                 end
             end
         end
-		if gotbetter
-			nstableiter = 0
-		end
+        # println("^ gotbetter")
+        oldbestcost = bestcost
         bestcost, bestind = findmin(costs)
         best = col(pop[:,bestind])
-		# @show bestcost nstableiter
+
+		if bestcost < oldbestcost
+            shownewbest && log("New best at iter $iter with cost $bestcost:\n", best)
+			nstableiter = 0
+		end
+
         if recordhistory
-            history[iter+1] = Dict({"pop","costs","bestcost","best","predictor","ncostevals"},
-            {copy(pop), copy(costs), copy(bestcost), copy(best), copy(frompredictor), copy(ncostevals)})
+            history[iter+1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals))
         end
         iter += 1
     end
@@ -109,7 +177,8 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
         k = collect(keys(first(history)))
         history = Dict(k, map(x->extract(history, x), k))
     end
-    best, Dict(("bestcost", "ncostevals", "history"), (bestcost, ncostevals, history))
+    showbest && log("Best:\n$best")
+    best, @compat Dict(:bestcost => bestcost, :ncostevals => ncostevals, :history => history, :pop => pop)
 end
 
 
@@ -154,15 +223,15 @@ function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsi
     for i = 1:nruns
         best, stats = de(f, mi, ma, 
         tryallpredictors = tryallpredictors, recordhistory = true, maxiter = maxiter, npop = npop, predictors = predictors; kargs...)
-        #@show stats["bestcost"] stats["ncostevals"]
-        #@show stats["history"]["ncostevals"]
-        maxval = stats["history"]["ncostevals"][end]
+        #@show stats[:bestcost] stats[:ncostevals]
+        #@show stats[:history][:ncostevals]
+        maxval = stats[:history][:ncostevals][end]
         for j = 1:maxval/stepsize
-            #@show length(stats["history"]["bestcost"])
-            #@show length(stats["history"]["ncostevals"])
+            #@show length(stats[:history][:bestcost])
+            #@show length(stats[:history][:ncostevals])
             #@show j*stepsize
             isnan(costs[j]) ? costs[j] = 0 : nothing
-            costs[j] += interpval(stats["history"]["bestcost"], stats["history"]["ncostevals"], j*stepsize) 
+            costs[j] += interpval(stats[:history][:bestcost], stats[:history][:ncostevals], j*stepsize)
             counters[j] += 1
         end
         push!(allbests, best)
@@ -174,7 +243,7 @@ function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsi
     lines = semilogy(stepsize*(1:length(costs)),costs)
     xlabel("Number of cost function evaluations")
     ylabel("Cost of best idividuum")
-    #lines = semilogy(stats["history"]["ncostevals"], map(nanmean,stats["history"]["bestcost"]))
+    #lines = semilogy(stats[:history][:ncostevals], map(nanmean,stats[:history][:bestcost]))
     allbests, allstats, lines[1]
 end
 
@@ -196,6 +265,5 @@ function demo()
 		("tryall", {predictor, :default}, {(:tryallpredictors,true)})
 	])
 end
-
 
 end # module
