@@ -22,7 +22,7 @@ end
 de(costf::Function, mi::Vector, ma::Vector; args...) = de(costf, col(mi), col(ma); args...)
 function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     npop = 100,
-    maxiter::Int = asint(1e6),
+    maxiter::Int = 1_000_000,
 	maxstableiter::Int = 100,
     predictors = Any[:default],
     lambda = 0.85,
