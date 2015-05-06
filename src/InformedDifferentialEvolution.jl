@@ -22,8 +22,8 @@ end
 de(costf::Function, mi::Vector, ma::Vector; args...) = de(costf, col(mi), col(ma); args...)
 function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     npop = 100,
-    maxiter = 1e6,
-	maxstableiter = 100,
+    maxiter::Int = asint(1e6),
+	maxstableiter::Int = 100,
     predictors = Any[:default],
     lambda = 0.85,
     sampler = rand,
@@ -125,7 +125,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     log(a...) = println(io, a...)
 
     if recordhistory
-        history = Array(Any,maxiter+1)
+        history = Array(Any, maxiter+1)
         history[1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals))
     else
         history = Any[]
@@ -186,7 +186,7 @@ end # module InformedDifferentialEvolution
 
 module InformedDEHelpers
 
-using InformedDifferentialEvolution, PyPlot
+using InformedDifferentialEvolution
 export analyze, singleanalysis
 
 function interpval(values, ticks, at)
@@ -213,13 +213,13 @@ assert(interpval(1:10, 1:10, 1.5)==1.5)
 assert(interpval(-1:-1:-10, 1:10, 8.5)==-8.5)
 assert(map(x->interpval((1:3).^2,1:3,x),1:3)==[1,4,9])
  
-function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsize = 100, predictors = {}, tryallpredictors = false, kargs...) 
+function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsize = 100, predictors = Any[], tryallpredictors = false, kargs...) 
     nsamples = int((maxiter + 1)*max(1,length(predictors))*npop / stepsize)
     #@show nsamples
     costs = fill(NaN,nsamples)
     counters = zeros(nsamples)
-    allbests = {}
-    allstats = {}
+    allbests = Any[]
+    allstats = Any[]
     for i = 1:nruns
         best, stats = de(f, mi, ma, 
         tryallpredictors = tryallpredictors, recordhistory = true, maxiter = maxiter, npop = npop, predictors = predictors; kargs...)
@@ -258,11 +258,11 @@ function demo()
 	mi = [-1,-1]; ma = [1,1]
 
 	analyze(f, mi, ma, [
-		("default", {:default},{}),
-		("pred first", {predictor, :default}, {}),
-		("pred last", {:default, predictor}, {}),
-		("pred only", {predictor}, {}),
-		("tryall", {predictor, :default}, {(:tryallpredictors,true)})
+		("default", [:default],Any[]),
+		("pred first", [predictor, :default], Any[]),
+		("pred last", [:default, predictor], Any[]),
+		("pred only", [predictor], Any[]),
+		("tryall", [predictor, :default], [(:tryallpredictors,true)])
 	])
 end
 
