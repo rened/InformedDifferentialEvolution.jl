@@ -103,6 +103,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     if isempty(predictors)
         error("no predictors specified, use [:default] for no predictors")
     end
+    predictors = convert(Array{Any}, predictors)
     predictors[find(predictors.==:default)] = defaultpredictor!
     predictedpop = zero(initpop)
 
