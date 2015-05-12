@@ -24,7 +24,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     npop = 100,
     maxiter::Int = 1_000_000,
 	maxstableiter::Int = 100,
-    predictors = Any[:default],
+    predictors::Array = Any[:default],
     lambda = 0.85,
     sampler = rand,
     initpop = if sampler == rand
@@ -41,7 +41,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     diffweight = 0.85,
 	roundto = 1e-6,
     data = nothing,
-    verbosity::Array = Symbol[],
+    verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop
     replaceworst = 0.1,
     classicmode = true,
     # :iter show iter number, :newbest show new bests, :pop population
@@ -101,7 +101,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     end
 
     if isempty(predictors)
-        error("no predictors specified, use [:default] for no predictors")
+         error("no predictors specified, use [:default] for no predictors")
     end
     predictors = convert(Array{Any}, predictors)
     predictors[find(predictors.==:default)] = defaultpredictor!
@@ -127,7 +127,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
     if recordhistory
         history = Array(Any, maxiter+1)
-        history[1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals))
+        history[1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :bestind => bestind, :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => indmin(costs))
     else
         history = Any[]
     end
