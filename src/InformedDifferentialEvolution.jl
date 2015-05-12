@@ -41,7 +41,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     diffweight = 0.85,
 	roundto = 1e-6,
     data = nothing,
-    verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop
+    verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost
     replaceworst = 0.1,
     classicmode = true,
     # :iter show iter number, :newbest show new bests, :pop population
@@ -105,6 +105,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     end
     predictors = convert(Array{Any}, predictors)
     predictors[find(predictors.==:default)] = defaultpredictor!
+    @assert all(x->isa(x, Function), predictors)  "InformedDifferentialEvolution: all predictors need to be functions or the symbol :default"
     predictedpop = zero(initpop)
 
 
@@ -122,6 +123,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     showiter = in(:iter, verbosity)
     showbest = in(:best, verbosity)
     shownewbest = in(:newbest, verbosity)
+    shownewbestcost = in(:newbestcost, verbosity)
     showpop = in(:pop, verbosity)
     log(a...) = println(io, a...)
 
@@ -164,19 +166,20 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
         best = col(pop[:,bestind])
 
 		if bestcost < oldbestcost
+            shownewbestcost && log("New best at iter $iter with cost $bestcost")
             shownewbest && log("New best at iter $iter with cost $bestcost:\n", best)
 			nstableiter = 0
 		end
 
         if recordhistory
-            history[iter+1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals))
+            history[iter+1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => bestind)
         end
         iter += 1
     end
     if recordhistory
         history = history[1:iter]
         k = collect(keys(first(history)))
-        history = Dict(k, map(x->extract(history, x), k))
+        history = Dict(zip(k, map(x->extract(history, x), k)))
     end
     showbest && log("Best:\n$best")
     best, @compat Dict(:bestcost => bestcost, :ncostevals => ncostevals, :history => history, :pop => pop)
