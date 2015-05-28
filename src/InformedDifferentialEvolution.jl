@@ -41,11 +41,12 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     diffweight = 0.85,
 	roundto = 1e-6,
     data = nothing,
-    verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost
+    verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost, :initbestcost
     replaceworst = 0.1,
     classicmode = true,
     # :iter show iter number, :newbest show new bests, :pop population
-    io = STDOUT)
+    io = STDOUT,
+    evaluator = nothing)  # called as evaluator(pop, costs, bestind, best), can return arbitrary things for history
 
     pop = copy(initpop)
     rounder!(pop, roundto)
@@ -124,6 +125,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     showbest = in(:best, verbosity)
     shownewbest = in(:newbest, verbosity)
     shownewbestcost = in(:newbestcost, verbosity)
+    showinitbestcost = in(:initbestcost, verbosity)
     showpop = in(:pop, verbosity)
     log(a...) = println(io, a...)
 
@@ -137,6 +139,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
     pv = view(predictedpop)
     while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove
+        showinitbestcost && iter == 1 && log("Best cost in init pop: $bestcost")
         showiter && log("Iteration: $iter")
         showpop && log("Population:\n$pop")
 
@@ -173,6 +176,9 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
         if recordhistory
             history[iter+1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => bestind)
+            if evaluator != nothing
+                history[iter+1][:evaluator] = evaluator(pop, costs, bestind, best)
+            end
         end
         iter += 1
     end
