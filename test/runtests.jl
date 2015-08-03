@@ -15,5 +15,19 @@ f(x) = sum(abs(x))
 predictor(r,pop,costs) = r[:] = vcat(mean(pop,1), mean(pop,1))
 mi = [-1,-1]; ma = [1,1]
 
-best, info = de(f, mi, ma, predictors = {predictor, :default})
+best, info = de(f, mi, ma, predictors = [predictor, :default])
 @test maximum(abs(best)) < 0.000001
+
+function f(x, previouscost = Inf)
+    r = 0.
+    for i = -5:5
+        r += abs(x[1])+abs(x[2]+i)
+        if r > previouscost
+            break
+        end
+    end
+    r
+end
+best, info = de(f, [-100,-100], [100,100])
+@test best == [0 0]'
+

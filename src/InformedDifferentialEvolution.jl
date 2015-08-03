@@ -44,6 +44,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost, :initbestcost
     replaceworst = 0.1,
     classicmode = true,
+    passpreviouscost = false,
     # :iter show iter number, :newbest show new bests, :pop population
     io = STDOUT,
     evaluator = nothing)  # called as evaluator(pop, costs, bestind, best), can return arbitrary things for history
@@ -153,7 +154,11 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
             for n = 1:npop
                 view!(predictedpop, n, pv)
-                newcost = costf(pv)
+                if passpreviouscost
+                    newcost = costf(pv, costs[n])
+                else
+                    newcost = costf(pv)
+                end
                 ncostevals += 1
                 # @show costs[n] newcost pv
                 if newcost < costs[n]
