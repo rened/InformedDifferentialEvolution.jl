@@ -1,8 +1,8 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__()
+isdefined(:__precompile__) && __precompile__()
 
 module InformedDifferentialEvolution
 
-using FunctionalDataUtils, Compat
+using FunctionalDataUtils
 import FunctionalData: clamp!
 
 export de
@@ -135,7 +135,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
     if recordhistory
         history = Array(Any, maxiter+1)
-        history[1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :bestind => bestind, :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => indmin(costs))
+        history[1] = Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :bestind => bestind, :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => indmin(costs))
     else
         history = Any[]
     end
@@ -183,7 +183,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 		end
 
         if recordhistory
-            history[iter+1] = @compat Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => bestind)
+            history[iter+1] = Dict(:pop => copy(pop), :costs => copy(costs), :bestcost => copy(best), :frompredictor => copy(frompredictor), :ncostevals => copy(ncostevals), :bestind => bestind)
             if evaluator != nothing
                 history[iter+1][:evaluator] = evaluator(pop, costs, bestind, best)
             end
@@ -196,7 +196,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
         history = Dict(zip(k, map(x->extract(history, x), k)))
     end
     showbest && log("Best:\n$best")
-    best, @compat Dict(:bestcost => bestcost, :ncostevals => ncostevals, :history => history, :pop => pop)
+    best, Dict(:bestcost => bestcost, :ncostevals => ncostevals, :history => history, :pop => pop)
 end
 
 
