@@ -1,3 +1,5 @@
+println("\n\n\nRunning tests ...") 
+
 using InformedDifferentialEvolution
 using Base.Test
 
@@ -18,7 +20,7 @@ mi = [-1,-1]; ma = [1,1]
 best, info = de(f, mi, ma, predictors = [predictor, :default])
 @test maximum(abs(best)) < 0.000001
 
-function f(x, previouscost = Inf)
+function g(x, previouscost = Inf)
     r = 0.
     for i = -5:5
         r += abs(x[1])+abs(x[2]+i)
@@ -28,6 +30,7 @@ function f(x, previouscost = Inf)
     end
     r
 end
-best, info = de(f, [-100,-100], [100,100])
+best, info = de(g, [-100,-100], [100,100])
 @test best == [0 0]'
 
+println("   done running tests!")

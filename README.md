@@ -1,6 +1,7 @@
 # InformedDifferentialEvolution
 
-[![Build Status](https://travis-ci.org/rened/InformedDifferentialEvolution.jl.svg?branch=master)](https://travis-ci.org/rened/InformedDifferentialEvolution.jl)
+[![Build Status](https://travis-ci.org/rened/InformedDifferentialEvolution.jl.png)](https://travis-ci.org/rened/InformedDifferentialEvolution.jl)
+[![Build Status](http://pkg.julialang.org/badges/InformedDifferentialEvolution_0.5.svg)](http://pkg.julialang.org/?pkg=InformedDifferentialEvolution&ver=0.5)
 
 This package implements the simplest version of Differential Evolution, but adds the ability to specify custom 'predictors', which allow to incorporate knowledge about the problem into the optimization. 
 

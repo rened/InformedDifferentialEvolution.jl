@@ -1,4 +1,4 @@
-isdefined(:__precompile__) && __precompile__()
+__precompile__()
 
 module InformedDifferentialEvolution
 
@@ -43,7 +43,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     crossoverprob = 0.5,
     diffweight = 0.85,
 	roundto = 1e-6,
-    data = nothing,
+    data = Void,
     verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost, :initbestcost
     replaceworst = 0.1,
     classicmode = true,
@@ -113,13 +113,14 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     @assert all(x->isa(x, Function), predictors)  "InformedDifferentialEvolution: all predictors need to be functions or the symbol :default"
     predictedpop = zero(initpop)
 
-
-    if data != nothing
-        costf(a) = costf(a, data)
+    if data != Void
+        costf_(a) = costf(a, data)
+    else
+        costf_ = costf
     end
 
     for i = 1:npop
-        costs[i] = costf(pop[:,i])
+        costs[i] = costf_(pop[:,i])
         ncostevals += 1
     end
     bestcost, bestind = findmin(costs)
@@ -141,7 +142,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     end
 
 
-    pv = view(predictedpop)
+    pv = FD.view(predictedpop)
     while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove
         showinitbestcost && iter == 1 && log("Best cost in init pop: $bestcost")
         showiter && log("Iteration: $iter")
@@ -158,9 +159,9 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
             for n = 1:npop
                 view!(predictedpop, n, pv)
                 if passpreviouscost
-                    newcost = costf(pv, costs[n])
+                    newcost = costf_(pv, costs[n])
                 else
-                    newcost = costf(pv)
+                    newcost = costf_(pv)
                 end
                 ncostevals += 1
                 # @show costs[n] newcost pv
