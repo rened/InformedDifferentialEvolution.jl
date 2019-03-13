@@ -1,11 +1,8 @@
-__precompile__()
-
 module InformedDifferentialEvolution
 
-using FunctionalDataUtils
-import FunctionalData: clamp!
+using FunctionalData, FunctionalDataUtils, Random
 
-export de
+export DE
 
 extract(a, field) = map(x->x[field],a)
 nanmean(a) = mean(a[!isnan(a)])
@@ -22,8 +19,9 @@ function rounder!(a,stepsize::Matrix)
     end
 end
 
-de(costf::Function, mi::Vector, ma::Vector; args...) = de(costf, col(mi), col(ma); args...)
-function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
+
+DE(costf::Function, mi::Vector, ma::Vector; args...) = DE(costf, col(mi), col(ma); args...)
+function DE(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     npop = 100,
     maxiter::Int = 1_000_000,
 	maxstableiter::Int = 100,
@@ -43,14 +41,15 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     crossoverprob = 0.5,
     diffweight = 0.85,
 	roundto = 1e-6,
-    data = Void,
+    data = nothing,
     verbosity::Array = Symbol[],  # :iter, :best, :newbest, :pop, :newbestcost, :initbestcost
     replaceworst = 0.1,
     classicmode = true,
     passpreviouscost = false,
     # :iter show iter number, :newbest show new bests, :pop population
-    io = STDOUT,
-    evaluator = nothing)  # called as evaluator(pop, costs, bestind, best), can return arbitrary things for history
+    io = stdout,
+    evaluator = nothing  # called as evaluator(pop, costs, bestind, best), can return arbitrary things for history
+   ) where T
 
     pop = copy(initpop)
     rounder!(pop, roundto)
@@ -67,7 +66,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
     ###### predictors
 
-    function defaultpredictor!{T}(r::Matrix{T}, pop::Matrix{T}, costs)
+    function defaultpredictor!(r::Matrix{T}, pop::Matrix{T}, costs) where T
         if classicmode
             randind() = rand(1:npop)
             for ind0 = 1:npop
@@ -109,11 +108,11 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
          error("no predictors specified, use [:default] for no predictors")
     end
     predictors = convert(Array{Any}, predictors)
-    predictors[find(predictors.==:default)] = defaultpredictor!
+    predictors[findall(predictors.==:default)] .= defaultpredictor!
     @assert all(x->isa(x, Function), predictors)  "InformedDifferentialEvolution: all predictors need to be functions or the symbol :default"
     predictedpop = zero(initpop)
 
-    if data != Void
+    if !isnil(data)
         costf_(a) = costf(a, data)
     else
         costf_ = costf
@@ -142,7 +141,7 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     end
 
 
-    pv = FD.view(predictedpop)
+    # pv = FD.view(predictedpop)
     while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove
         showinitbestcost && iter == 1 && log("Best cost in init pop: $bestcost")
         showiter && log("Iteration: $iter")
@@ -157,7 +156,8 @@ function de{T}(costf::Function, mi::Array{T,2}, ma::Array{T,2};
             clamp!(predictedpop, mi, ma)
 
             for n = 1:npop
-                view!(predictedpop, n, pv)
+                # FD.view!(predictedpop, n, pv)
+                pv = at(predictedpop,n)
                 if passpreviouscost
                     newcost = costf_(pv, costs[n])
                 else
@@ -209,7 +209,7 @@ using InformedDifferentialEvolution
 export analyze, singleanalysis
 
 function interpval(values, ticks, at)
-    ind = find(at.>=ticks)
+    ind = findall(at.>=ticks)
     if isempty(ind)
         ind = 1
     else
@@ -228,9 +228,9 @@ function interpval(values, ticks, at)
     #@show r
     r
 end
-assert(interpval(1:10, 1:10, 1.5)==1.5)
-assert(interpval(-1:-1:-10, 1:10, 8.5)==-8.5)
-assert(map(x->interpval((1:3).^2,1:3,x),1:3)==[1,4,9])
+@assert interpval(1:10, 1:10, 1.5) == 1.5
+@assert interpval(-1:-1:-10, 1:10, 8.5) == -8.5
+@assert map(x->interpval((1:3).^2,1:3,x),1:3) == [1,4,9]
  
 function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsize = 100, predictors = Any[], tryallpredictors = false, kargs...) 
     nsamples = int((maxiter + 1)*max(1,length(predictors))*npop / stepsize)
@@ -240,7 +240,7 @@ function singleanalysis(f, mi, ma; nruns = 10, npop = 100, maxiter = 100, stepsi
     allbests = Any[]
     allstats = Any[]
     for i = 1:nruns
-        best, stats = de(f, mi, ma, 
+        best, stats = DE(f, mi, ma, 
         tryallpredictors = tryallpredictors, recordhistory = true, maxiter = maxiter, npop = npop, predictors = predictors; kargs...)
         #@show stats[:bestcost] stats[:ncostevals]
         #@show stats[:history][:ncostevals]
@@ -272,7 +272,7 @@ function analyze(f, mi, ma, predictors)
 end
 
 function demo()
-	f(x) = sum(abs(x))
+	f(x) = sum(abs.(x))
 	predictor(pop,costs) = vcat(mean(pop,1), mean(pop,1))
 	mi = [-1,-1]; ma = [1,1]
 
