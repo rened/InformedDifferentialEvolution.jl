@@ -24,6 +24,7 @@ DE(costf::Function, mi::Vector, ma::Vector; args...) = DE(costf, col(mi), col(ma
 function DE(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     npop = 100,
     maxiter::Int = 1_000_000,
+    timeout::Number = Inf,
 	maxstableiter::Int = 100,
     predictors::Array = Any[:default],
     sampler = rand,
@@ -141,7 +142,8 @@ function DE(costf::Function, mi::Array{T,2}, ma::Array{T,2};
 
 
     # pv = FD.view(predictedpop)
-    while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove
+    t = time()
+    while iter <= maxiter && nstableiter < maxstableiter && bestcost > continueabove && time()-t < timeout
         showinitbestcost && iter == 1 && log("Best cost in init pop: $bestcost")
         showiter && log("Iteration: $iter")
         showpop && log("Population:\n$pop")
