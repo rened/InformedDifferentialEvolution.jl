@@ -26,7 +26,6 @@ function DE(costf::Function, mi::Array{T,2}, ma::Array{T,2};
     maxiter::Int = 1_000_000,
 	maxstableiter::Int = 100,
     predictors::Array = Any[:default],
-    lambda = 0.85,
     sampler = rand,
     initpop = if sampler == rand
         col(mi) .+ rand(length(mi), npop) .* (col(ma) - col(mi))
